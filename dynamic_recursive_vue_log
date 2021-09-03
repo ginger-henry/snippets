@@ -39,8 +39,6 @@ export default {
                    if(typeof(staticObject[attribute]) == 'object'){
                        //recursively iterate through object
                        this.compareForChanges(staticObject[attribute], dynamicObject[attribute]);
-                   } else if(typeof(staticObject[attribute]) == 'array'){
-                       console.log('here', typeof(staticObject[attribute]));
                    } else {
                        //add to changes list
                        this.changes.unshift({attribute: attribute, new: dynamicObject[attribute], original: staticObject[attribute]});
