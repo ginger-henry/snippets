@@ -1,0 +1,109 @@
+<script>
+
+export default {
+    data(){
+        return {
+            changes : [],
+            originalVillaState: null,
+        }
+    },
+    created(){
+    //stores original state into non-reactive attribute
+    this.originalVillaState = JSON.parse(JSON.stringify(this.$store.getters['villaEditModule/villa']));
+
+    this.$store.subscribeAction({
+        after: (action, state) => {
+            //loops through the comparisons for the villa objects
+            var exceptions = ['check_in_days_allowed', 'check_out_days_allowed'];
+            this.compareForChanges(this.originalVillaState, state.villaEditModule.villa, exceptions);
+            this.exceptionObjectAttributesToConatenatedString(this.originalVillaState, state.villaEditModule.villa, exceptions);
+        }
+    })
+    },
+    methods: {
+        compareForChanges(staticObject, dynamicObject, exceptions){
+            for(const attribute in dynamicObject){
+                //exceptions
+                var runComparison = true;
+                if(exceptions && exceptions.includes(attribute)){
+                    runComparison = false;
+                };
+                //comparison
+                if(dynamicObject[attribute] != staticObject[attribute] && runComparison){
+                   if(typeof(staticObject[attribute]) == 'object'){
+                       //recursively iterate through object
+                       this.compareForChanges(staticObject[attribute], dynamicObject[attribute]);
+                   } else if(typeof(staticObject[attribute]) == 'array'){
+                       console.log('here', typeof(staticObject[attribute]));
+                   } else {
+                       //add to changes list
+                       this.changes.unshift({attribute: attribute, new: dynamicObject[attribute], original: staticObject[attribute]});
+                   }
+                } else {
+                    //remove from changes array if value has changed back to original value
+                    this.changes.forEach(function(change, index, object){
+                        if(change.attribute == attribute){
+                            object.splice(index, 1);
+                        }
+                    })
+                }
+            }
+            this.cleanUpChangeLog();
+        },
+        cleanUpChangeLog(){
+            //get rid of old changed values in new array
+            var loggedAttributes = [];
+            this.changes.forEach(function(change, index, object){
+                if(loggedAttributes.includes(change.attribute)){
+                    object.splice(index, 1);
+                } else {
+                    loggedAttributes.push(change.attribute);
+                }
+            });
+        },
+        exceptionObjectAttributesToConatenatedString(staticObject, dynamicObject, exceptions){
+            //comparison loop
+            var scopeThis = this;
+            exceptions.forEach(function(exception){
+                if(staticObject[exception] != dynamicObject[exception]){
+                    var hasChanged = false;
+                    var oldValToString = '';
+                    var newValToString = '';
+
+                    if(staticObject[exception] != null){
+                        staticObject[exception].forEach(function(exceptionItem, index){
+                            //concatenate  for future changelog
+                            oldValToString += exceptionItem + ', ';
+                            //compare
+                            if( dynamicObject[exception] == null || exceptionItem != dynamicObject[exception][index]){
+                                hasChanged = true;
+                            }
+                        });
+                    }
+                    
+                    if(dynamicObject[exception] != null){
+                    dynamicObject[exception].forEach(function(exceptionItem, index){
+                        //concatenate for future changelog
+                        newValToString += exceptionItem + ', ';
+                        //compare
+                        if( staticObject[exception] == null || exceptionItem != staticObject[exception][index]){
+                            hasChanged = true;
+                        }
+                    })
+                }
+                }
+                if(hasChanged){
+                    //get the last comma of of each
+                        oldValToString = oldValToString.substring(0, oldValToString.length-2);
+                        newValToString = newValToString.substring(0, newValToString.length-2);
+                    // this.changes.push({attribute: exception, new: newValToString, original: oldValToString});
+                    // this.cleanUpChangeLog();
+                    scopeThis.changes.push({attribute: exception, new: newValToString, original: oldValToString});
+                }
+            })
+
+        }
+    }
+
+}
+</script>
